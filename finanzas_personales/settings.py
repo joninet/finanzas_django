@@ -134,7 +134,3 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Google Sheets API Configuration
-# IDs de las hojas de cálculo para sincronización
-GASTOS_SHEET_ID = '147zqLqndvoM0Jm-6gjsMpRiLPbW8vs6D4vu8dIYyhoI'
-INGRESOS_SHEET_ID = '147zqLqndvoM0Jm-6gjsMpRiLPbW8vs6D4vu8dIYyhoI'
