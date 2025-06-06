@@ -40,6 +40,8 @@ local_settings.py
 credentials.json
 credentials*.json
 !credentials_example.json
+isentropic-sun-462022-g3-18e7472d4a38.json
+*.json.example
 
 # Directorios y archivos específicos de IDE
 .idea/
