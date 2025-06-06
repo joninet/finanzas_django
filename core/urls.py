@@ -11,6 +11,8 @@ urlpatterns = [
     path('ingresos/', views.ingresos, name='ingresos'),
     path('medios-pago/', views.medios_pago, name='medios_pago'),
     path('categorias/', views.categorias, name='categorias'),
+    # Gasto rápido
+    path('gasto-rapido/', views.gasto_rapido, name='gasto_rapido'),
     
     # API para gastos e ingresos
     path('api/gasto/crear/', views.crear_gasto, name='crear_gasto'),
@@ -28,11 +30,5 @@ urlpatterns = [
     path('api/categoria/crear/', views.crear_categoria, name='crear_categoria'),
     path('api/categoria/<int:categoria_id>/eliminar/', views.eliminar_categoria, name='eliminar_categoria'),
     
-    # API para sincronización con Google Sheets
-    path('api/sheets/sync-gastos/', views.sync_gastos_to_sheets, name='sync_gastos_sheets'),
-    path('api/sheets/sync-ingresos/', views.sync_ingresos_to_sheets, name='sync_ingresos_sheets'),
-    path('api/sheets/sync-medios-pago/', views.sync_medios_pago_to_sheets, name='sync_medios_pago_sheets'),
-    path('api/sheets/sync-categorias/', views.sync_categorias_to_sheets, name='sync_categorias_sheets'),
-    path('api/sheets/import/', views.import_from_sheets, name='import_sheets'),
-    path('sync-sheets/', views.sincronizacion_sheets, name='sincronizacion_sheets'),
+    # Ya no usamos Google Sheets
 ]

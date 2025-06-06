@@ -42,12 +42,14 @@ def dashboard(request):
     
     # Gastos por categoría
     gastos_por_categoria = gastos_mes.values('categoria').annotate(
-        total=Sum('monto')
+        total=Sum('monto'),
+        nombre=Count('categoria__nombre', distinct=True)
     ).order_by('-total')
     
     # Ingresos por categoría
     ingresos_por_categoria = ingresos_mes.values('categoria').annotate(
-        total=Sum('monto')
+        total=Sum('monto'),
+        nombre=Count('categoria__nombre', distinct=True)
     ).order_by('-total')
     
     # Contexto para la plantilla
@@ -73,17 +75,11 @@ def gastos_diarios(request):
     # Calcular total
     total_gastos = gastos.aggregate(total=Sum('monto'))['total'] or 0
     
-    # Obtener medios de pago para el formulario
-    medios_pago = MedioPago.objects.all().order_by('nombre')
-    categorias = Categoria.objects.filter(tipo='gasto').order_by('nombre')
-    
     # Contexto para la plantilla
     context = {
-        'gastos_diarios': gastos,
+        'gastos': gastos,
         'total_gastos': total_gastos,
-        'fecha': hoy,
-        'medios_pago': medios_pago,
-        'categorias': categorias
+        'fecha': hoy
     }
     
     return render(request, 'core/gastos_diarios.html', context)
@@ -104,17 +100,11 @@ def gastos_mensuales(request):
     # Calcular total
     total_gastos = gastos.aggregate(total=Sum('monto'))['total'] or 0
     
-    # Obtener medios de pago para el formulario
-    medios_pago = MedioPago.objects.all().order_by('nombre')
-    categorias = Categoria.objects.filter(tipo='gasto').order_by('nombre')
-    
     # Contexto para la plantilla
     context = {
-        'gastos_mensuales': gastos,
+        'gastos': gastos,
         'total_gastos': total_gastos,
-        'mes': hoy.strftime('%B %Y'),
-        'medios_pago': medios_pago,
-        'categorias': categorias
+        'mes': hoy.strftime('%B %Y')
     }
     
     return render(request, 'core/gastos_mensuales.html', context)
@@ -135,17 +125,11 @@ def ingresos(request):
     # Calcular total
     total_ingresos = ingresos_list.aggregate(total=Sum('monto'))['total'] or 0
     
-    # Obtener medios de pago para el formulario
-    medios_pago = MedioPago.objects.all().order_by('nombre')
-    categorias = Categoria.objects.filter(tipo='ingreso').order_by('nombre')
-    
     # Contexto para la plantilla
     context = {
         'ingresos': ingresos_list,
         'total_ingresos': total_ingresos,
-        'mes': hoy.strftime('%B %Y'),
-        'medios_pago': medios_pago,
-        'categorias': categorias
+        'mes': hoy.strftime('%B %Y')
     }
     
     return render(request, 'core/ingresos.html', context)
@@ -153,13 +137,10 @@ def ingresos(request):
 
 def categorias(request):
     """Vista para la página de categorías"""
-    # Filtrar categorías por tipo
-    categorias_gastos = Categoria.objects.filter(tipo='gasto').order_by('nombre')
-    categorias_ingresos = Categoria.objects.filter(tipo='ingreso').order_by('nombre')
+    categorias = Categoria.objects.all().order_by('nombre')
     
     context = {
-        'categorias_gastos': categorias_gastos,
-        'categorias_ingresos': categorias_ingresos
+        'categorias': categorias
     }
     
     return render(request, 'core/categorias.html', context)
@@ -167,10 +148,10 @@ def categorias(request):
 
 def medios_pago(request):
     """Vista para la página de medios de pago"""
-    medios_pago = MedioPago.objects.all().order_by('nombre')
+    medios = MedioPago.objects.all().order_by('nombre')
     
     context = {
-        'medios_pago': medios_pago
+        'medios': medios
     }
     
     return render(request, 'core/medios_pago.html', context)
@@ -285,7 +266,12 @@ def crear_gasto(request):
             'concepto': gasto.concepto,
             'monto': gasto.monto,
             'fecha': gasto.fecha.strftime('%Y-%m-%d'),
-            'categoria': gasto.categoria,  # Esto es un string ('variable' o 'fijo')
+            'categoria': {
+                'id': gasto.categoria.id,
+                'nombre': gasto.categoria.nombre,
+                'icon': gasto.categoria.icon,
+                'color': gasto.categoria.color
+            },
             'medio_pago': {
                 'id': gasto.medio_pago.id,
                 'nombre': gasto.medio_pago.nombre
@@ -392,7 +378,10 @@ def crear_ingreso(request):
             'concepto': ingreso.concepto,
             'monto': ingreso.monto,
             'fecha': ingreso.fecha.strftime('%Y-%m-%d'),
-            'categoria': ingreso.categoria,  # Esto es un string ('variable' o 'fijo')
+            'categoria': {
+                'id': ingreso.categoria.id,
+                'nombre': ingreso.categoria.nombre
+            },
             'medio_pago': {
                 'id': ingreso.medio_pago.id,
                 'nombre': ingreso.medio_pago.nombre
@@ -508,21 +497,15 @@ def crear_categoria(request):
     try:
         # Obtener datos
         nombre = request.POST.get('nombre')
-        tipo = request.POST.get('tipo')
         icon = request.POST.get('icon', 'tag')  # Icono predeterminado
         color = request.POST.get('color', '#6c757d')  # Color predeterminado
         
-        if not nombre or not tipo:
-            return JsonResponse({'error': 'El nombre y tipo son requeridos'}, status=400)
-            
-        # Validar que el tipo sea válido
-        if tipo not in ['gasto', 'ingreso']:
-            return JsonResponse({'error': 'El tipo debe ser gasto o ingreso'}, status=400)
+        if not nombre:
+            return JsonResponse({'error': 'El nombre es requerido'}, status=400)
         
         # Crear categoría
         categoria = Categoria.objects.create(
             nombre=nombre,
-            tipo=tipo,
             icon=icon,
             color=color
         )

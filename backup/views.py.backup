@@ -1,0 +1,342 @@
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.http import require_POST, require_GET
+from django.db.models import Sum, Count, Q
+from django.contrib import messages
+from django.shortcuts import render, get_object_or_404, redirect
+from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from django.conf import settings
+import json
+import os
+from datetime import datetime, timedelta
+import calendar
+from decimal import Decimal
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST, require_GET
+from django.contrib import messages
+
+from .models import MedioPago, Categoria, Movimiento, Gasto, Ingreso
+
+# Vistas principales
+
+def dashboard(request):
+    """Dashboard principal con resumen de finanzas personales"""
+    # Obtener fecha actual y primer día del mes
+    hoy = timezone.now().date()
+    primer_dia_mes = hoy.replace(day=1)
+    
+    # Estadísticas del mes actual
+    gastos_mes = Movimiento.objects.filter(
+        tipo='gasto',
+        fecha__gte=primer_dia_mes,
+        fecha__lte=hoy
+    )
+    
+    ingresos_mes = Movimiento.objects.filter(
+        tipo='ingreso',
+        fecha__gte=primer_dia_mes,
+        fecha__lte=hoy
+    )
+    
+    # Totales
+    total_gastos = gastos_mes.aggregate(total=Sum('monto'))['total'] or 0
+    total_ingresos = ingresos_mes.aggregate(total=Sum('monto'))['total'] or 0
+    balance = total_ingresos - total_gastos
+    
+    # Gastos por categoría
+    gastos_por_categoria = gastos_mes.values('categoria').annotate(
+        total=Sum('monto')
+    ).order_by('-total')
+    
+    # Próximos gastos mensuales pendientes
+    gastos_pendientes = Movimiento.objects.filter(
+        tipo='gasto',
+        estado='pendiente',
+        fecha__gte=hoy
+    ).order_by('fecha')[:5]
+    
+    contexto = {
+        'titulo': 'Dashboard',
+        'total_gastos': total_gastos,
+        'total_ingresos': total_ingresos,
+        'balance': balance,
+        'gastos_por_categoria': gastos_por_categoria,
+        'gastos_pendientes': gastos_pendientes,
+        'mes_actual': hoy.strftime('%B %Y')
+    }
+    
+    return render(request, 'core/dashboard.html', contexto)
+
+
+def gastos_diarios(request):
+    """Vista para gestionar gastos diarios"""
+    # Obtener medios de pago activos
+    medios_pago = MedioPago.objects.filter(activo=True).order_by('nombre')
+    
+    # Obtener categorías de gastos
+    categorias = Categoria.objects.filter(tipo='gasto', activo=True).order_by('nombre')
+    
+    # Obtener gastos diarios (del último mes)
+    fecha_limite = timezone.now().date() - timedelta(days=30)
+    gastos_diarios = Gasto.objects.filter(
+        categoria='variable',
+        fecha__gte=fecha_limite
+    ).order_by('-fecha')
+    
+    contexto = {
+        'titulo': 'Gastos Diarios',
+        'medios_pago': medios_pago,
+        'categorias': categorias,
+        'gastos_diarios': gastos_diarios,
+    }
+    
+    return render(request, 'core/gastos_diarios.html', contexto)
+
+
+def gastos_mensuales(request):
+    """Vista para gestionar gastos mensuales"""
+    # Obtener medios de pago activos
+    medios_pago = MedioPago.objects.filter(activo=True).order_by('nombre')
+    
+    # Obtener categorías de gastos
+    categorias = Categoria.objects.filter(tipo='gasto', activo=True).order_by('nombre')
+    
+    # Generar lista de los últimos 12 meses
+    hoy = timezone.now().date()
+    meses = []
+    
+    for i in range(12):
+        fecha = hoy - timedelta(days=30*i)
+        mes_anio = fecha.strftime("%m-%Y")
+        nombre_mes = fecha.strftime("%B %Y")
+        meses.append({'valor': mes_anio, 'nombre': nombre_mes})
+    
+    # Obtener gastos mensuales
+    gastos_mensuales = Gasto.objects.filter(
+        categoria='fijo',
+    ).order_by('-fecha')
+    
+    # Obtener mes actual
+    mes_actual = hoy.strftime("%m-%Y")
+    
+    contexto = {
+        'titulo': 'Gastos Mensuales',
+        'medios_pago': medios_pago,
+        'categorias': categorias,
+        'gastos_mensuales': gastos_mensuales,
+        'meses': meses,
+        'mes_actual': mes_actual
+    }
+    
+    return render(request, 'core/gastos_mensuales.html', contexto)
+
+
+def ingresos(request):
+    """Vista para gestionar ingresos"""
+    # Obtener medios de pago activos
+    medios_pago = MedioPago.objects.filter(activo=True).order_by('nombre')
+    
+    # Obtener categorías de ingresos
+    categorias = Categoria.objects.filter(tipo='ingreso', activo=True).order_by('nombre')
+    
+    # Obtener ingresos (del último año)
+    fecha_limite = timezone.now().date() - timedelta(days=365)
+    lista_ingresos = Ingreso.objects.filter(
+        fecha__gte=fecha_limite
+    ).order_by('-fecha')
+    
+    contexto = {
+        'titulo': 'Ingresos',
+        'medios_pago': medios_pago,
+        'categorias': categorias,
+        'ingresos': lista_ingresos,
+    }
+    
+    return render(request, 'core/ingresos.html', contexto)
+
+
+def gasto_rapido(request):
+    """Vista simplificada para ingresar gastos desde dispositivos móviles"""
+    # Obtener categorías y medios de pago para el formulario
+    categorias = Categoria.objects.filter(tipo='gasto', activo=True).order_by('nombre')
+    medios_pago = MedioPago.objects.filter(activo=True).order_by('nombre')
+    
+    if request.method == 'POST':
+        return JsonResponse({
+            'success': True,
+            'mensaje': 'Operación completada exitosamente'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Error al cambiar estado: {str(e)}'}, status=500)
+
+
+@require_POST
+def crear_ingreso(request):
+    """Crea un nuevo ingreso"""
+    return JsonResponse({
+            'success': True,
+            'mensaje': 'Operación completada exitosamente'
+        })"
+        except Exception as sync_error:
+                    
+        return JsonResponse({
+            'success': True,
+            'mensaje':         })
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Error al eliminar el ingreso: {str(e)}'}, status=500)
+
+
+@require_GET
+def listar_medios_pago(request):
+    """Retorna la lista de medios de pago disponibles"""
+    return JsonResponse({
+            'success': True,
+            'mensaje': 'Operación completada exitosamente'
+        }) y sincronizado exitosamente'
+            else:
+                                    
+        return JsonResponse({
+            'success': True,
+            'mensaje':         })
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Error al eliminar medio de pago: {str(e)}'}, status=500)
+
+
+def medios_pago(request):
+    """Vista para gestionar medios de pago"""
+    # Obtener medios de pago activos
+    medios_pago = MedioPago.objects.filter(activo=True).order_by('nombre')
+    
+    contexto = {
+        'titulo': 'Medios de Pago',
+        'medios_pago': medios_pago,
+    }
+    
+    return render(request, 'core/medios_pago.html', contexto)
+
+
+def categorias(request):
+    """Vista para gestionar categorías"""
+    # Obtener categorías activas, separadas por tipo
+    categorias_gastos = Categoria.objects.filter(tipo='gasto', activo=True).order_by('nombre')
+    categorias_ingresos = Categoria.objects.filter(tipo='ingreso', activo=True).order_by('nombre')
+    
+    contexto = {
+        'titulo': 'Categorías',
+        'categorias_gastos': categorias_gastos,
+        'categorias_ingresos': categorias_ingresos,
+    }
+    
+    return render(request, 'core/categorias.html', contexto)
+
+
+@require_POST
+def crear_categoria(request):
+    """Crea una nueva categoría"""
+    return JsonResponse({
+            'success': True,
+            'mensaje': 'Operación completada exitosamente'
+        }) y sincronizada exitosamente'
+            else:
+                                    
+        return JsonResponse({
+            'success': True,
+            'mensaje':         })
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Error al eliminar categoría: {str(e)}'}, status=500)
+
+
+# Vistas y API para Google Sheets
+
+# La funcionalidad para limpiar localStorage se implementó directamente en base.html
+# con un botón en la barra lateral que elimina los datos temporales
+
+def sincronizacion_sheets(request):
+    """Vista para la página de sincronización con Google Sheets"""
+    # Verificar si existen las credenciales
+    credenciales_existen = os.path.exists(CREDENTIALS_FILE)
+    
+    contexto = {
+        'titulo': 'Sincronización con Google Sheets',
+        'credenciales_existen': credenciales_existen,
+        'gastos_sheet_id': getattr(settings, 'GASTOS_SHEET_ID', ''),
+        'ingresos_sheet_id': getattr(settings, 'INGRESOS_SHEET_ID', '')
+    }
+    
+    return render(request, 'core/sincronizacion_sheets_fix.html', contexto)
+
+
+@require_POST
+def sync_gastos_to_sheets(request):
+    """Sincroniza los gastos a Google Sheets"""
+    try:
+        from django.contrib import messages
+        from django.shortcuts import redirect
+        
+        resultado = sheets_sync_gastos()
+        
+        if 'error' in resultado:
+            messages.error(request, f"Error: {resultado['error']}")
+        else:
+            messages.success(request, resultado.get('message', 'Gastos sincronizados exitosamente'))
+        
+        return redirect('core:sincronizacion_sheets')
+    
+    except Exception as e:
+        from django.contrib import messages
+        from django.shortcuts import redirect
+        
+        messages.error(request, f'Error: {str(e)}')
+        return redirect('core:sincronizacion_sheets')
+
+
+@require_POST
+def sync_ingresos_to_sheets(request):
+    """Sincroniza los ingresos a Google Sheets"""
+    try:
+        resultado = sheets_sync_ingresos()
+        
+        if 'error' in resultado:
+            messages.error(request, f"Error: {resultado['error']}")
+        else:
+            messages.success(request, resultado.get('message', 'Ingresos sincronizados exitosamente'))
+        
+        return redirect('core:sincronizacion_sheets')
+    
+        messages.error(request, f'Error: {str(e)}')
+        return redirect('core:sincronizacion_sheets')
+
+
+@require_POST
+def import_from_sheets(request):
+    """Importa datos desde Google Sheets"""
+    try:
+        resultados = sheets_import()
+        
+        # Verificar si hay errores en alguno de los resultados
+        errores = []
+        for tipo, resultado in resultados.items():
+            if 'error' in resultado:
+                errores.append(f"{tipo}: {resultado['error']}")
+        
+        if errores:
+            messages.error(request, f"Errores: {', '.join(errores)}")
+            return redirect('core:sincronizacion_sheets')
+        
+        # Construir mensaje de éxito
+        mensajes = []
+        for tipo, resultado in resultados.items():
+            if 'message' in resultado:
+                mensajes.append(resultado['message'])
+        
+        messages.success(request, ' | '.join(mensajes))
+        return redirect('core:sincronizacion_sheets')
+    
+    except Exception as e:
+        messages.error(request, f'Error: {str(e)}')
+        return redirect('core:sincronizacion_sheets')

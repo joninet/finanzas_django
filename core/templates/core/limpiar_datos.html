@@ -1,0 +1,79 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Limpiar Datos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Limpiar Datos de la Aplicación</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5><i class="bi bi-exclamation-triangle-fill me-2"></i> Advertencia</h5>
+                        <p>Esta acción limpiará todos los datos almacenados en el navegador (localStorage). Esto puede ser útil si hay datos desactualizados o inconsistentes.</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h6>Esta acción:</h6>
+                        <ul>
+                            <li>Eliminará datos de cache del navegador</li>
+                            <li>Eliminará preferencias temporales</li>
+                            <li>No afectará a los datos guardados en la base de datos</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button id="limpiarLocalStorage" class="btn btn-danger btn-lg">
+                            <i class="bi bi-trash-fill me-2"></i>Limpiar localStorage
+                        </button>
+                        <a href="{% url 'core:dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Volver al Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="resultadoLimpieza" class="mt-4" style="display: none;">
+                <div class="alert alert-success">
+                    <h5><i class="bi bi-check-circle-fill me-2"></i> Datos limpiados correctamente</h5>
+                    <p>Se ha limpiado el localStorage del navegador. Ahora puedes volver a utilizar la aplicación con datos frescos.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnLimpiar = document.getElementById('limpiarLocalStorage');
+    const resultadoDiv = document.getElementById('resultadoLimpieza');
+    
+    btnLimpiar.addEventListener('click', function() {
+        try {
+            // Limpiar todo el localStorage
+            localStorage.clear();
+            
+            // Mostrar mensaje de éxito
+            resultadoDiv.style.display = 'block';
+            btnLimpiar.disabled = true;
+            btnLimpiar.innerHTML = '<i class="bi bi-check-lg me-2"></i>Datos limpiados';
+            
+            // Esperar 2 segundos y redirigir al dashboard
+            setTimeout(function() {
+                window.location.href = "{% url 'core:dashboard' %}";
+            }, 2000);
+            
+        } catch (error) {
+            console.error("Error al limpiar localStorage:", error);
+            alert("Ocurrió un error al intentar limpiar los datos: " + error.message);
+        }
+    });
+});
+</script>
+{% endblock %}

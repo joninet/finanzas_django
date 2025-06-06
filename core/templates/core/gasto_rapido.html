@@ -1,0 +1,230 @@
+{% extends "core/base.html" %}
+{% load django_bootstrap5 %}
+
+{% block title %}Gasto Rápido | Finanzas Personales{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilos específicos para la página de gasto rápido */
+    .quick-form {
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+    
+    .form-label {
+        font-weight: 500;
+    }
+    
+    .category-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1.25rem;
+    }
+    
+    .category-button {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 80px;
+        height: 80px;
+        border-radius: 10px;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        overflow: hidden;
+        padding: 5px;
+    }
+    
+    .category-button.selected {
+        background-color: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
+    
+    .category-button i {
+        font-size: 1.5rem;
+        margin-bottom: 5px;
+    }
+    
+    .category-button .cat-name {
+        font-size: 0.7rem;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        width: 100%;
+    }
+    
+    /* Para pantallas muy pequeñas */
+    @media (max-width: 320px) {
+        .category-button {
+            width: 70px;
+            height: 70px;
+        }
+    }
+    
+    /* Mejoras para formulario en móviles */
+    input[type="number"] {
+        font-size: 1.2rem;
+    }
+    
+    /* Mostrar botones grandes para los medios de pago */
+    .mp-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1.25rem;
+    }
+    
+    .mp-button {
+        padding: 0.5rem;
+        border-radius: 10px;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .mp-button.selected {
+        background-color: #198754;
+        color: white;
+        border-color: #198754;
+    }
+</style>
+{% endblock %}
+
+{% block header_title %}Gasto Rápido{% endblock %}
+
+{% block content %}
+<div class="container">
+    {% if messages %}
+    <div class="row mb-3">
+        <div class="col">
+            {% for message in messages %}
+            <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col">
+            <form method="POST" action="/gasto-rapido/" class="quick-form">
+                {% csrf_token %}
+                
+                <!-- Monto del gasto - Grande y claro -->
+                <div class="form-group">
+                    <label for="monto" class="form-label">¿Cuánto gastaste?</label>
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text">$</span>
+                        <input type="number" step="0.01" class="form-control" id="monto" name="monto" placeholder="0.00" required autofocus>
+                    </div>
+                </div>
+                
+                <!-- Concepto - Simple -->
+                <div class="form-group">
+                    <label for="concepto" class="form-label">¿En qué gastaste?</label>
+                    <input type="text" class="form-control" id="concepto" name="concepto" placeholder="Ej: Supermercado, Café, Gasolina..." required>
+                </div>
+                
+                <!-- Categorías como botones visuales -->
+                <div class="form-group">
+                    <label class="form-label">Categoría</label>
+                    <div class="category-buttons" id="categoryButtons">
+                        <input type="hidden" id="categoria" name="categoria" required>
+                        {% for categoria in categorias %}
+                        <div class="category-button" data-id="{{ categoria.id }}" data-color="{{ categoria.color }}" onclick="seleccionarCategoria(this)">
+                            <i class="bi bi-{{ categoria.icon }}" style="color: {{ categoria.color }}"></i>
+                            <span class="cat-name">{{ categoria.nombre }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Medios de pago como botones -->
+                <div class="form-group">
+                    <label class="form-label">Medio de pago</label>
+                    <div class="mp-buttons" id="mpButtons">
+                        <input type="hidden" id="medio_pago" name="medio_pago" required>
+                        {% for medio in medios_pago %}
+                        <div class="mp-button" data-id="{{ medio.id }}" onclick="seleccionarMedioPago(this)">
+                            {{ medio.nombre }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Fecha - Por defecto hoy -->
+                <div class="form-group">
+                    <label for="fecha" class="form-label">Fecha</label>
+                    <input type="date" class="form-control" id="fecha" name="fecha" value="{{ fecha_actual }}">
+                </div>
+                
+                <!-- Botón grande para guardar -->
+                <div class="form-group d-grid">
+                    <button type="submit" class="btn btn-success btn-lg">Guardar Gasto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Funciones para selección de categoría y medio de pago
+    function seleccionarCategoria(elemento) {
+        // Quitar selección previa
+        document.querySelectorAll('.category-button').forEach(button => {
+            button.classList.remove('selected');
+        });
+        
+        // Marcar el elemento como seleccionado
+        elemento.classList.add('selected');
+        
+        // Actualizar el input oculto
+        document.getElementById('categoria').value = elemento.dataset.id;
+    }
+    
+    function seleccionarMedioPago(elemento) {
+        // Quitar selección previa
+        document.querySelectorAll('.mp-button').forEach(button => {
+            button.classList.remove('selected');
+        });
+        
+        // Marcar el elemento como seleccionado
+        elemento.classList.add('selected');
+        
+        // Actualizar el input oculto
+        document.getElementById('medio_pago').value = elemento.dataset.id;
+    }
+    
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-seleccionar la primera categoría y medio de pago
+        const primeraCat = document.querySelector('.category-button');
+        const primerMP = document.querySelector('.mp-button');
+        
+        if (primeraCat) {
+            seleccionarCategoria(primeraCat);
+        }
+        
+        if (primerMP) {
+            seleccionarMedioPago(primerMP);
+        }
+        
+        // Enfoque en el campo de monto
+        document.getElementById('monto').focus();
+    });
+</script>
+{% endblock %}
