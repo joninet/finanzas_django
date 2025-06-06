@@ -1,0 +1,134 @@
+{% extends 'core/base.html' %}
+{% load django_bootstrap5 %}
+
+{% block title %}Dashboard - Finanzas Personales{% endblock %}
+
+{% block header_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card card-dashboard card-ingresos">
+                <div class="card-body">
+                    <h5 class="card-title">Ingresos del mes</h5>
+                    <h2 class="text-success">{{ total_ingresos|floatformat:2 }} ARS</h2>
+                    <p class="card-text text-muted">{{ mes_actual }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-dashboard card-gastos">
+                <div class="card-body">
+                    <h5 class="card-title">Gastos del mes</h5>
+                    <h2 class="text-danger">{{ total_gastos|floatformat:2 }} ARS</h2>
+                    <p class="card-text text-muted">{{ mes_actual }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-dashboard card-total">
+                <div class="card-body">
+                    <h5 class="card-title">Balance</h5>
+                    <h2 class="{% if balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ balance|floatformat:2 }} ARS
+                    </h2>
+                    <p class="card-text text-muted">{{ mes_actual }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card card-dashboard">
+                <div class="card-header">
+                    <h5 class="mb-0">Distribución de Gastos</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="gastosPorCategoria" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-dashboard">
+                <div class="card-header">
+                    <h5 class="mb-0">Próximos Gastos Pendientes</h5>
+                </div>
+                <div class="card-body">
+                    {% if gastos_pendientes %}
+                        <ul class="list-group list-group-flush">
+                            {% for gasto in gastos_pendientes %}
+                                <li class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">{{ gasto.concepto }}</h6>
+                                        <span class="text-danger">{{ gasto.monto }} ARS</span>
+                                    </div>
+                                    <small class="text-muted">{{ gasto.fecha|date:"d/m/Y" }}</small>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-center text-muted my-3">No hay gastos pendientes</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Gráfico de distribución de gastos por categoría
+        const ctxGastos = document.getElementById('gastosPorCategoria').getContext('2d');
+        
+        const gastosPorCategoria = [
+            {% for cat in gastos_por_categoria %}
+                {
+                    categoria: "{{ cat.categoria }}",
+                    total: {{ cat.total|floatformat:2 }}
+                },
+            {% endfor %}
+        ];
+        
+        const labels = gastosPorCategoria.map(item => item.categoria);
+        const data = gastosPorCategoria.map(item => item.total);
+        
+        const colores = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#8AC249', '#EA526F', '#23B5D3', '#279AF1'
+        ];
+        
+        new Chart(ctxGastos, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Gastos por Categoría',
+                    data: data,
+                    backgroundColor: colores.slice(0, labels.length),
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                return `${context.label}: ${formatearMoneda(value)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

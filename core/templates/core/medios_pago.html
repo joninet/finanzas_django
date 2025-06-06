@@ -1,0 +1,164 @@
+{% extends 'core/base.html' %}
+{% load django_bootstrap5 %}
+
+{% block title %}Medios de Pago - Finanzas Personales{% endblock %}
+
+{% block header_title %}Medios de Pago{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Medios de Pago Activos</h5>
+                </div>
+                <div class="card-body">
+                    {% if medios_pago %}
+                        <div class="list-group">
+                            {% for medio in medios_pago %}
+                            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                <span>{{ medio.nombre }}</span>
+                                <button class="btn btn-danger btn-sm" 
+                                        onclick="eliminarMedioPago('{{ medio.id }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-center text-muted my-3">No hay medios de pago registrados</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Agregar Medio de Pago</h5>
+                </div>
+                <div class="card-body">
+                    <form id="formMedioPago" class="needs-validation" novalidate>
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label">Nombre</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" required>
+                            <div class="invalid-feedback">
+                                Por favor ingresa un nombre para el medio de pago.
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Información</h5>
+                </div>
+                <div class="card-body">
+                    <p>Los medios de pago te permiten categorizar el origen o destino de tus movimientos financieros.</p>
+                    <p>Ejemplos:</p>
+                    <ul>
+                        <li>Cuenta Bancaria</li>
+                        <li>Tarjeta de Crédito</li>
+                        <li>Efectivo</li>
+                        <li>Mercado Pago</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const formMedioPago = document.getElementById('formMedioPago');
+        
+        // Validación de formulario
+        formMedioPago.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!this.checkValidity()) {
+                e.stopPropagation();
+                this.classList.add('was-validated');
+                return;
+            }
+            
+            const formData = new FormData(this);
+            
+            // Enviar formulario usando fetch API
+            fetch('{% url "core:crear_medio_pago" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    mostrarNotificacion(data.mensaje, 'success');
+                    formMedioPago.reset();
+                    formMedioPago.classList.remove('was-validated');
+                    // Recargar para ver el nuevo medio de pago
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    mostrarNotificacion(data.error || 'Error al crear el medio de pago', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarNotificacion('Error al procesar la solicitud', 'danger');
+            });
+        });
+        
+        // Función para eliminar medio de pago
+        window.eliminarMedioPago = function(id) {
+            if (confirm('¿Está seguro que desea eliminar este medio de pago?\nEsta acción no eliminará los movimientos asociados.')) {
+                fetch(`{% url "core:eliminar_medio_pago" 0 %}`.replace('0', id), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        mostrarNotificacion(data.mensaje, 'success');
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
+                    } else {
+                        mostrarNotificacion(data.error || 'Error al eliminar', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    mostrarNotificacion('Error al procesar la solicitud', 'danger');
+                });
+            }
+        }
+        
+        // Función para obtener el valor de una cookie
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+{% endblock %}

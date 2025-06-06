@@ -1,0 +1,345 @@
+{% extends 'core/base.html' %}
+{% load django_bootstrap5 %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Sincronización con Google Sheets</h1>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Estado de la Configuración</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <h6>Credenciales de Google:</h6>
+                {% if credenciales_existen %}
+                    <div class="alert alert-success">
+                        <i class="fa fa-check-circle me-2"></i> Credenciales configuradas correctamente.
+                    </div>
+                {% else %}
+                    <div class="alert alert-danger">
+                        <i class="fa fa-exclamation-triangle me-2"></i> No se encontraron las credenciales de Google.
+                        <p class="mb-0 mt-2">Necesitas crear un archivo <code>credentials.json</code> en el directorio raíz del proyecto.</p>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="mb-3">
+                <h6>ID de la hoja de Gastos:</h6>
+                {% if gastos_sheet_id %}
+                    <div class="alert alert-success">
+                        <i class="fa fa-check-circle me-2"></i> Configurado: {{ gastos_sheet_id }}
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fa fa-exclamation-triangle me-2"></i> No configurado.
+                        <p class="mb-0 mt-2">Agrega el ID de la hoja en el archivo <code>settings.py</code> como <code>GASTOS_SHEET_ID</code>.</p>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="mb-3">
+                <h6>ID de la hoja de Ingresos:</h6>
+                {% if ingresos_sheet_id %}
+                    <div class="alert alert-success">
+                        <i class="fa fa-check-circle me-2"></i> Configurado: {{ ingresos_sheet_id }}
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fa fa-exclamation-triangle me-2"></i> No configurado.
+                        <p class="mb-0 mt-2">Agrega el ID de la hoja en el archivo <code>settings.py</code> como <code>INGRESOS_SHEET_ID</code>.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5>Acciones de Sincronización</h5>
+        </div>
+        <div class="card-body">
+            {% if credenciales_existen and gastos_sheet_id and ingresos_sheet_id %}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Gastos</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Sincroniza todos los gastos desde la base de datos hacia Google Sheets.</p>
+                                <button type="button" id="btn-sync-gastos" class="btn btn-primary">
+                                    <i class="fa fa-sync me-2"></i>Sincronizar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0">Ingresos</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Sincroniza todos los ingresos desde la base de datos hacia Google Sheets.</p>
+                                <button type="button" id="btn-sync-ingresos" class="btn btn-success">
+                                    <i class="fa fa-sync me-2"></i>Sincronizar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">Medios de Pago</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Sincroniza todos los medios de pago desde la base de datos hacia Google Sheets.</p>
+                                <button type="button" id="btn-sync-medios" class="btn btn-info">
+                                    <i class="fa fa-sync me-2"></i>Sincronizar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header bg-warning text-dark">
+                                <h5 class="mb-0">Categorías</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Sincroniza todas las categorías desde la base de datos hacia Google Sheets.</p>
+                                <button type="button" id="btn-sync-categorias" class="btn btn-warning">
+                                    <i class="fa fa-sync me-2"></i>Sincronizar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-12 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header bg-danger text-white">
+                                <h5 class="mb-0">Importar Datos</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Importa los datos de gastos e ingresos desde Google Sheets a la base de datos.</p>
+                                <button type="button" id="btn-import" class="btn btn-danger">
+                                    <i class="fa fa-download me-2"></i>Importar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-4">
+                    <i class="fa fa-info-circle me-2"></i> La sincronización puede tardar unos segundos dependiendo de la cantidad de datos.
+                </div>
+                
+                <!-- Contenedor para mensajes de respuesta -->
+                <div id="resultado-container" class="mt-4" style="display: none;">
+                    <div class="alert" id="resultado-mensaje">
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-warning">
+                    <i class="fa fa-exclamation-circle me-2"></i> Completa la configuración antes de sincronizar datos.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Función para mostrar resultados
+    function mostrarResultado(mensaje, esExito) {
+        const contenedor = document.getElementById('resultado-container');
+        const alertaMsg = document.getElementById('resultado-mensaje');
+        
+        alertaMsg.textContent = mensaje;
+        alertaMsg.className = esExito ? 'alert alert-success' : 'alert alert-danger';
+        contenedor.style.display = 'block';
+        
+        // Scroll al mensaje
+        contenedor.scrollIntoView({ behavior: 'smooth' });
+        
+        // Ocultar después de 10 segundos si fue exitoso
+        if (esExito) {
+            setTimeout(() => {
+                contenedor.style.display = 'none';
+            }, 10000);
+        }
+    }
+    
+    // Función para obtener el valor de una cookie (para CSRF token)
+    function getCookie(nombre) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, nombre.length + 1) === (nombre + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(nombre.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Configurar eventos de botones
+    const btnGastos = document.getElementById('btn-sync-gastos');
+    if (btnGastos) {
+        btnGastos.addEventListener('click', function() {
+            console.log('Botón de sincronizar gastos clickeado');
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sincronizando...';
+            
+            fetch('{% url "core:sync_gastos_sheets" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => {
+                console.log('Respuesta recibida', response);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Datos recibidos', data);
+                mostrarResultado(data.mensaje, data.success);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarResultado('Error de conexión: ' + error.message, false);
+            })
+            .finally(() => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fa fa-sync me-2"></i>Sincronizar';
+            });
+        });
+    }
+    
+    const btnIngresos = document.getElementById('btn-sync-ingresos');
+    if (btnIngresos) {
+        btnIngresos.addEventListener('click', function() {
+            console.log('Botón de sincronizar ingresos clickeado');
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sincronizando...';
+            
+            fetch('{% url "core:sync_ingresos_sheets" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                mostrarResultado(data.mensaje, data.success);
+            })
+            .catch(error => {
+                mostrarResultado('Error de conexión: ' + error.message, false);
+            })
+            .finally(() => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fa fa-sync me-2"></i>Sincronizar';
+            });
+        });
+    }
+    
+    const btnMedios = document.getElementById('btn-sync-medios');
+    if (btnMedios) {
+        btnMedios.addEventListener('click', function() {
+            console.log('Botón de sincronizar medios clickeado');
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sincronizando...';
+            
+            fetch('{% url "core:sync_medios_pago_sheets" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                mostrarResultado(data.mensaje, data.success);
+            })
+            .catch(error => {
+                mostrarResultado('Error de conexión: ' + error.message, false);
+            })
+            .finally(() => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fa fa-sync me-2"></i>Sincronizar';
+            });
+        });
+    }
+    
+    const btnCategorias = document.getElementById('btn-sync-categorias');
+    if (btnCategorias) {
+        btnCategorias.addEventListener('click', function() {
+            console.log('Botón de sincronizar categorías clickeado');
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sincronizando...';
+            
+            fetch('{% url "core:sync_categorias_sheets" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                mostrarResultado(data.mensaje, data.success);
+            })
+            .catch(error => {
+                mostrarResultado('Error de conexión: ' + error.message, false);
+            })
+            .finally(() => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fa fa-sync me-2"></i>Sincronizar';
+            });
+        });
+    }
+    
+    const btnImport = document.getElementById('btn-import');
+    if (btnImport) {
+        btnImport.addEventListener('click', function() {
+            console.log('Botón de importar clickeado');
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importando...';
+            
+            fetch('{% url "core:import_sheets" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                mostrarResultado(data.mensaje, data.success);
+            })
+            .catch(error => {
+                mostrarResultado('Error de conexión: ' + error.message, false);
+            })
+            .finally(() => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fa fa-download me-2"></i>Importar';
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,277 @@
+{% extends 'core/base.html' %}
+{% load django_bootstrap5 %}
+
+{% block title %}Categorías - Finanzas Personales{% endblock %}
+
+{% block header_title %}Categorías{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row">
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="gastos-tab" data-bs-toggle="tab" data-bs-target="#gastos" type="button" role="tab" aria-controls="gastos" aria-selected="true">
+                                Gastos
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="ingresos-tab" data-bs-toggle="tab" data-bs-target="#ingresos" type="button" role="tab" aria-controls="ingresos" aria-selected="false">
+                                Ingresos
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="gastos" role="tabpanel" aria-labelledby="gastos-tab">
+                            {% if categorias_gastos %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Nombre</th>
+                                                <th>Icono</th>
+                                                <th>Color</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for categoria in categorias_gastos %}
+                                            <tr>
+                                                <td>{{ categoria.nombre }}</td>
+                                                <td>
+                                                    <i class="bi bi-{{ categoria.icono }}" style="color: {{ categoria.color }};"></i>
+                                                </td>
+                                                <td>
+                                                    <span class="color-preview" style="background-color: {{ categoria.color }};"></span>
+                                                    {{ categoria.color }}
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-danger btn-sm" 
+                                                            onclick="eliminarCategoria('{{ categoria.id }}')">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-center text-muted my-3">No hay categorías de gastos registradas</p>
+                            {% endif %}
+                        </div>
+                        <div class="tab-pane fade" id="ingresos" role="tabpanel" aria-labelledby="ingresos-tab">
+                            {% if categorias_ingresos %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Nombre</th>
+                                                <th>Icono</th>
+                                                <th>Color</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for categoria in categorias_ingresos %}
+                                            <tr>
+                                                <td>{{ categoria.nombre }}</td>
+                                                <td>
+                                                    <i class="bi bi-{{ categoria.icono }}" style="color: {{ categoria.color }};"></i>
+                                                </td>
+                                                <td>
+                                                    <span class="color-preview" style="background-color: {{ categoria.color }};"></span>
+                                                    {{ categoria.color }}
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-danger btn-sm" 
+                                                            onclick="eliminarCategoria('{{ categoria.id }}')">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-center text-muted my-3">No hay categorías de ingresos registradas</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Agregar Categoría</h5>
+                </div>
+                <div class="card-body">
+                    <form id="formCategoria" class="needs-validation" novalidate>
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label">Nombre</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" required>
+                            <div class="invalid-feedback">
+                                Por favor ingresa un nombre para la categoría.
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="tipo" class="form-label">Tipo</label>
+                            <select class="form-select" id="tipo" name="tipo" required>
+                                <option value="gasto">Gasto</option>
+                                <option value="ingreso">Ingreso</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="icono" class="form-label">Icono</label>
+                            <div class="input-group">
+                                <span class="input-group-text">bi-</span>
+                                <input type="text" class="form-control" id="icono" name="icono" required>
+                            </div>
+                            <div class="form-text">Nombre del icono de Bootstrap Icons (sin el prefijo bi-)</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="color" class="form-label">Color</label>
+                            <input type="color" class="form-control form-control-color" id="color" name="color" value="#198754" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Iconos disponibles</h5>
+                </div>
+                <div class="card-body">
+                    <p>Puedes elegir entre los muchos iconos de Bootstrap Icons:</p>
+                    <div class="row row-cols-auto g-2">
+                        <div class="col"><i class="bi bi-cash-coin fs-4"></i></div>
+                        <div class="col"><i class="bi bi-credit-card fs-4"></i></div>
+                        <div class="col"><i class="bi bi-cart fs-4"></i></div>
+                        <div class="col"><i class="bi bi-house fs-4"></i></div>
+                        <div class="col"><i class="bi bi-gift fs-4"></i></div>
+                        <div class="col"><i class="bi bi-cup-hot fs-4"></i></div>
+                        <div class="col"><i class="bi bi-car-front fs-4"></i></div>
+                        <div class="col"><i class="bi bi-building fs-4"></i></div>
+                        <div class="col"><i class="bi bi-bank fs-4"></i></div>
+                        <div class="col"><i class="bi bi-basket fs-4"></i></div>
+                        <div class="col"><i class="bi bi-book fs-4"></i></div>
+                        <div class="col"><i class="bi bi-capsule fs-4"></i></div>
+                    </div>
+                    <p class="mt-2">Consulta la <a href="https://icons.getbootstrap.com/" target="_blank">lista completa de iconos</a>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.color-preview {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const formCategoria = document.getElementById('formCategoria');
+        
+        // Validación de formulario
+        formCategoria.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!this.checkValidity()) {
+                e.stopPropagation();
+                this.classList.add('was-validated');
+                return;
+            }
+            
+            const formData = new FormData(this);
+            
+            // Enviar formulario usando fetch API
+            fetch('{% url "core:crear_categoria" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    mostrarNotificacion(data.mensaje, 'success');
+                    formCategoria.reset();
+                    formCategoria.classList.remove('was-validated');
+                    document.getElementById('color').value = '#198754'; // Resetear color
+                    // Recargar para ver la nueva categoría
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    mostrarNotificacion(data.error || 'Error al crear la categoría', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarNotificacion('Error al procesar la solicitud', 'danger');
+            });
+        });
+        
+        // Función para eliminar categoría
+        window.eliminarCategoria = function(id) {
+            if (confirm('¿Está seguro que desea eliminar esta categoría?\nEsta acción no eliminará los movimientos asociados.')) {
+                fetch(`{% url "core:eliminar_categoria" 0 %}`.replace('0', id), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        mostrarNotificacion(data.mensaje, 'success');
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
+                    } else {
+                        mostrarNotificacion(data.error || 'Error al eliminar', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    mostrarNotificacion('Error al procesar la solicitud', 'danger');
+                });
+            }
+        }
+        
+        // Función para obtener el valor de una cookie
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+{% endblock %}
