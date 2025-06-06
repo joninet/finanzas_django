@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-# exit on error
 set -o errexit
 
 echo "Running migrations..."
-cd finanzas_django
 python manage.py migrate --noinput
 
 echo "Creating superuser if needed..."
